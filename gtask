@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#eg: 创建 feature分支 gtask -c f
+#eg  创建 hotfix 分支 gtask -c h
+
 #是否创建 hotfix
 HOTFIX=0
 #是否创建 feature
