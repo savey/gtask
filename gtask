@@ -1,1 +1,111 @@
-/Users/savey/bin/gtask
+#!/bin/bash
+
+#是否创建 hotfix
+HOTFIX=0
+#是否创建 feature
+FEATURE=0
+#任务名
+TASKNAME=
+#任务日期
+TASKDATA=
+#是否合并 TODO
+MERGE=0
+
+#使用说明
+usage()
+{
+	cat <<EOF
+usage:   gtask -<option>
+options:
+-c [hf]
+	h "创建一个 hotfix 分支"
+	f "创建一个 feature 分支"
+-d  	"删除本地非[master\develop\dev]分支"
+-m  	"合并当前分支到[master|develop] 该指令会检测你的本地是否有[master|develop]分支、如果没有、则拉取远程的[master|develop]到本地，没有则退出！"
+
+EOF
+
+	exit 1
+}
+
+#判断参数
+if [[ $# -eq 0 ]]; then
+	usage
+fi
+
+
+#生成当前日期
+gen_date()
+{
+	TASKDATA=`date +%Y%m%d`
+	return $?
+}
+
+#输入task名
+gen_name()
+{	
+	read -p "Your Task name:  " TASKNAME
+	return $?
+}
+
+# 创建任务
+create_task()
+{
+	gen_date
+	gen_name
+
+	local temp="${1}/${TASKDATA}-${TASKNAME}"
+
+	if [[ $1 == "hotfix" ]]; then
+		git pull origin master:master>/dev/null 2>&1
+		wait
+		git checkout master>/dev/null 2>&1
+	elif [[ $1 == "feature" ]]; then
+		git pull origin develop:develop>/dev/null 2>&1
+		wait
+		git checkout develop>/dev/null 2>&1
+	else
+		usage
+	fi
+
+	wait
+	git checkout -b ${temp}>/dev/null 2>&1
+
+
+	if [[ $? == 0 ]]; then
+		echo -e "🍻 Success created task: \033[32m${temp}\033[0m"
+	else
+		echo -e "💊 failure!"
+	fi
+
+	return $?
+}
+
+
+while getopts "c:m:d" opt; do
+	case $opt in
+		c)
+			if [[ $OPTARG == "h" ]]; then
+				HOTFIX=1
+			elif [[ $OPTARG == "f" ]]; then
+				FEATURE=1
+			else
+				usage
+			fi;;
+		m)
+			MERGE=1;;
+		d)
+			read -p "Are You Sure?[y/n]" -s tag
+			if [[ $tag == "y" ]]; then
+				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
+			fi
+			exit 1;;
+		\?)
+			usage;;
+	esac
+done
+
+# 创建 hotfix 分支
+[ $HOTFIX -eq 1 ] && create_task hotfix
+# 创建 feature 分支
+[ $FEATURE -eq 1 ] && create_task feature
