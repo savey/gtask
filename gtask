@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#eg: 创建 feature分支 gtask -c f
-#eg  创建 hotfix 分支 gtask -c h
-
 #是否创建 hotfix
 HOTFIX=0
 #是否创建 feature
@@ -11,30 +8,6 @@ FEATURE=0
 TASKNAME=
 #任务日期
 TASKDATA=
-#是否合并 TODO
-MERGE=0
-
-#使用说明
-usage()
-{
-	cat <<EOF
-usage:   gtask -<option>
-options:
--c [hf]
-	h "创建一个 hotfix 分支"
-	f "创建一个 feature 分支"
--d  	"删除本地非[master\develop\dev]分支"
--m  	"合并当前分支到[master|develop] 该指令会检测你的本地是否有[master|develop]分支、如果没有、则拉取远程的[master|develop]到本地，没有则退出！"
-
-EOF
-
-	exit 1
-}
-
-#判断参数
-if [[ $# -eq 0 ]]; then
-	usage
-fi
 
 
 #生成当前日期
@@ -85,27 +58,83 @@ create_task()
 }
 
 
-while getopts "c:m:d" opt; do
-	case $opt in
-		c)
-			if [[ $OPTARG == "h" ]]; then
-				HOTFIX=1
-			elif [[ $OPTARG == "f" ]]; then
-				FEATURE=1
-			else
-				usage
-			fi;;
-		m)
-			MERGE=1;;
-		d)
+#添加文件
+add_task()
+{
+	local filelist
+	if [ -z $1 ]; then
+
+		filelist=`git status --porcelain | sed 's/^...//g'`
+
+		[[ $filelist = "" ]] && printf "未发现修改的文件！\n" && exit 1
+	else
+		filelist=$1	
+	fi
+
+	echo -e "\n开始检查php文件语法错误>>>>>>>>\n"
+	local pass
+
+	for file in $filelist; do
+		if [[ -f $file ]] && [[ "${file##*.}"s = "php"s ]]; then
+			
+			`php -l $file >/dev/null`
+
+			[[ $? > 0 ]] && pass=1
+		fi
+	done
+
+	[[ $pass -eq 1 ]] && echo -e 💋 "\033[41;30m 请修复语法错误后再提交 \033[0m" && exit 1
+
+	`git add $filelist`
+
+	echo -e "\033[42;34m 添加成功！ git status 可以帮助您查看暂存区情况 \033[0m"
+
+	exit 0
+}
+
+#使用说明
+usage()
+{
+	cat <<EOF
+usage:   gtask [options]
+options:
+-c [hf]
+	h "创建一个 hotfix 分支 base master"
+	f "创建一个 feature 分支 base develop"
+-d    "删除本地非[master\develop\dev]分支  注意：当使用此选项时、其他选项不生效"
+-a    "--add file. 添加到暂存区,并且检测php语法错误！默认为全部改动，但可以添加一个指定文件、注意： 当使用此选项时、其他选项不生效"
+
+EOF
+
+	exit 0
+}
+
+#判断参数
+[ $# -eq 0 ] && usage
+
+args=`getopt -o a::c:d -al add:: "$@"`
+
+eval set -- $args
+
+
+while [ $# -gt 0 ]; do
+	case $1 in
+		-c)
+			[ $2 = "h" ] && HOTFIX=1 || [ $2 = "f" ] && FEATURE=1 || usage
+			;;
+		-a | --add)
+			add_task $2
+			;;
+		-d)
 			read -p "Are You Sure?[y/n]" -s tag
 			if [[ $tag == "y" ]]; then
 				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 			fi
 			exit 1;;
 		\?)
-			usage;;
+			;;
 	esac
+	shift
 done
 
 # 创建 hotfix 分支
