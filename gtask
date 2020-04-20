@@ -145,7 +145,6 @@ while true; do
 					;;
 				* )
 					usage
-					exit
 
 			esac
 			exit 0
