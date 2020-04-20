@@ -96,7 +96,7 @@ add_task()
 
 	echo -e "\033[33m==>\033[1m \033[37m Success...🤙🤙🤙  \033[0m"
 
-	exit 0
+  return $?
 }
 
 #使用说明
@@ -105,11 +105,12 @@ usage()
 	cat <<EOF
 usage:   gtask [options]
 options:
--c [hf]
-	h "创建一个 hotfix 分支 base master"
-	f "创建一个 feature 分支 base develop"
+-c [h|f]
+	    h "创建一个 hotfix 分支 base master"
+	    f "创建一个 feature 分支 base develop"
 -d    "删除本地非[master\develop\dev]分支  注意：当使用此选项时、其他选项不生效"
--a    "--add file. 添加到暂存区,并且检测php语法错误！默认为全部改动，但可以添加一个指定文件、注意： 当使用此选项时、其他选项不生效"
+-a|--add    "--add=<file>. 添加到暂存区,并且检测php语法错误！默认为全部改动，但可以添加一个指定文件、注意： 当使用此选项时、其他选项不生效"
+-m|--msg    "--msg=<msg>提交代码到仓库 必跟参数 message"
 
 EOF
 
@@ -119,18 +120,27 @@ EOF
 #判断参数
 [ $# -eq 0 ] && usage
 
-args=`getopt -o a::c:d -al add:: "$@"`
+args=`getopt -o m::a::c:dh --long add::,msg:: -n "$0" -- "$@"`
 
-eval set -- $args
+eval set -- "$args"
 
-
-while [ $# -gt 0 ]; do
+while true; do
 	case $1 in
+	  -m | --msg)
+	    [ -z $2 ] && msg=fixbug || msg=$2
+	    eval git commit -m $2
+	    exit
+	    ;;
+	  -h)
+	     usage
+	     shift
+	     ;;
 		-c)
-			[ $2 = "h" ] && HOTFIX=1 || [ $2 = "f" ] && FEATURE=1 || usage
+			[ $2 = "h" ] && HOTFIX=1 || [ $2 = "f" ] && FEATURE=1 && shift 2 || usage
 			;;
 		-a | --add)
 			add_task $2
+			exit $?
 			;;
 		-d)
 			read -p "Are You Sure?[y/n]" -s tag
@@ -138,10 +148,15 @@ while [ $# -gt 0 ]; do
 				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 			fi
 			exit 1;;
-		*)
+	  --)
+	    shift
+	    exit
+	    ;;
+	\?)
+	    usage
+		  exit
 			;;
 	esac
-	shift
 done
 
 # 创建 hotfix 分支
