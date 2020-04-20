@@ -71,23 +71,30 @@ add_task()
 		filelist=$1	
 	fi
 
-	echo -e "\n开始检查php文件语法错误>>>>>>>>\n"
+	echo -e "\033[33m==>\033[1m \033[37m Check Php Syntax... \033[0m"
 	local pass
 
 	for file in $filelist; do
 		if [[ -f $file ]] && [[ "${file##*.}"s = "php"s ]]; then
-			
-			`php -l $file >/dev/null`
 
-			[[ $? > 0 ]] && pass=1
+			local errortips;
+
+			`php -l $file >/dev/null 2>/tmp/php_error.log`
+
+			[[ $? > 0 ]] \
+			&& pass=1 \
+			&& errortips=$(cat /tmp/php_error.log) \
+			&& echo -e "\033[32m${file}\033[0m\033[31m ✘\033[0m" \
+			&& echo -e "\033[41;37m${errortips}\033[0m" \
+			|| echo -e "\033[32m${file}\033[0m\033[32m ✔\033[0m"
 		fi
 	done
 
-	[[ $pass -eq 1 ]] && echo -e 💋 "\033[41;30m 请修复语法错误后再提交 \033[0m" && exit 1
+	[[ $pass -eq 1 ]] && echo -e "\033[33m==>\033[1m \033[37m Please Fix ! \033[0m" && exit 1
 
-	`git add $filelist`
+	git add $filelist
 
-	echo -e "\033[42;34m 添加成功！ git status 可以帮助您查看暂存区情况 \033[0m"
+	echo -e "\033[33m==>\033[1m \033[37m Success...🤙🤙🤙  \033[0m"
 
 	exit 0
 }
@@ -131,7 +138,7 @@ while [ $# -gt 0 ]; do
 				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 			fi
 			exit 1;;
-		\?)
+		*)
 			;;
 	esac
 	shift
