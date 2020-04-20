@@ -101,6 +101,7 @@ usage()
 	cat <<EOF
 usage:   gtask [options]
 options:
+-s          "git status"
 -c [h|f]
 	    h "创建一个 hotfix 分支 base master"
 	    f "创建一个 feature 分支 base develop"
@@ -116,12 +117,16 @@ EOF
 #判断参数
 [ "$#" -eq 0 ] && usage
 
-args=`getopt -o m::a::c:dh --long add::,msg:: -n "$0" -- "$@"`
+args=`getopt -o m::a::c:sdh --long add::,msg::,status -n "$0" -- "$@"`
 
 eval set -- "$args"
 
 while true; do
 	case $1 in
+		-s | --status)
+			git status
+			exit 0
+			;;
 	  	-m | --msg)
 		    [ -z $2 ] && msg=fixbug || msg=$2
 		    eval git commit -m $2
