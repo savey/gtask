@@ -60,7 +60,7 @@ add_task()
 	local filelist
 	if [ -z "$1" ]; then
 
-		filelist=`git status --porcelain | sed 's/^...//g'`
+		filelist=`git status --porcelain --u | sed 's/^...//g'`
 
 		[ -z "$filelist" ] && printf "未发现修改的文件！\n" && exit 1
 	else
