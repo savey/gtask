@@ -48,7 +48,7 @@ ls_git_local_branch()
 }
 
 
-
+# 选择分支
 select_branch()
 {
 
@@ -75,8 +75,7 @@ select_branch()
 				exit 1
 			fi
 		else
-			echo "请输入合法的数字！"
-			exit 1
+			SELECTBRANCH=$1
 		fi
 
 	fi
