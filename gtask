@@ -5,6 +5,98 @@ TASKNAME=
 #任务日期
 TASKDATA=
 
+#php解释器
+PHPBIN="/usr/bin/env php -l"
+# phpcs 检查到的错误信息
+PHPCSLOGFILE=/tmp/check_result.txt
+#php 语法错误日志文件
+PHPERRORFILE=/tmp/php_error.log
+#phpcs 执行
+PHPCS="phpcs --standard=OSR0 --colors --encoding=utf-8 -n -p"
+#gun-opt
+GUNOPT="/usr/bin/env getopt"
+
+FORMATSTUDIO="\033[37m|----------------------------------------------------------------------|\033[0m"
+
+# 一个保存本地分支的数组
+LOCALBRANCHS=
+
+#选中的分支
+SELECTBRANCH=
+
+# 不带参数时出现选项，
+# 带参数时，指定把某个索引分支 merge 到 指定索引分支
+run_merge_branc()
+{
+	
+	select_branch $1
+
+	eval git merge $SELECTBRANCH
+}
+
+
+
+
+#列表出当前git下本地所有分支、并带上索引位置
+#gt -b
+ls_git_local_branch()
+{
+
+	select_branch $1
+
+	eval git checkout $SELECTBRANCH
+}
+
+
+
+select_branch()
+{
+
+	build_array_branch
+	
+	if [ ! $1 ]; then
+		for (( i = 1; i < ${#LOCALBRANCHS[@]}; i++ )); do
+			echo -e "\033[32m[$i] ----- ${LOCALBRANCHS[i]}\033[0m";
+		done
+
+		while [ ! $SELECTBRANCH ]; do
+			read -ep "Select Your Branch Index: " index
+			SELECTBRANCH=${LOCALBRANCHS[index]}
+		done
+
+	else
+		
+		if [[ $1 =~ ^[0-9]+$ ]]; then
+
+			SELECTBRANCH=${LOCALBRANCHS[$1]}
+
+			if [ ! $SELECTBRANCH ]; then
+				echo "Please Select Branch Index"
+				exit 1
+			fi
+		else
+			echo "请输入合法的数字！"
+			exit 1
+		fi
+
+	fi
+
+	return $?
+}
+
+
+
+
+# git branch 分支放到数组里
+build_array_branch()
+{
+	local i=1
+
+	for b in `git branch | grep "" | sed -e 's/*/ /' -e 's/ //'`; do LOCALBRANCHS[$i]=$b; let i++; done;
+
+	return $?
+}
+
 
 #生成当前日期
 gen_date()
@@ -30,17 +122,14 @@ create_task()
 
 	if [ "$1" = "hotfix" ]; then
 		git pull origin master:master>/dev/null 2>&1
-		wait
 		git checkout master>/dev/null 2>&1
 	elif [ "$1" = "feature" ]; then
 		git pull origin develop:develop>/dev/null 2>&1
-		wait
 		git checkout develop>/dev/null 2>&1
 	else
 		usage
 	fi
 
-	wait
 	git checkout -b ${temp}>/dev/null 2>&1
 
 
@@ -58,7 +147,7 @@ create_task()
 add_task()
 {
 	local filelist
-	if [ -z "$1" ]; then
+	if [ -z "$1" ] || [ $1 = "." ]; then
 
 		filelist=`git status --porcelain --u | sed 's/^...//g'`
 
@@ -67,30 +156,56 @@ add_task()
 		filelist=$1	
 	fi
 
-	echo -e "\033[33m==>\033[1m \033[37m Check Php Syntax... \033[0m"
+	echo -e $FORMATSTUDIO
+	echo -e "\033[37m|                         PHP语法检测开始                              |\033[0m\n"
 
 	local pass=0
+	local errortips
+
 	for file in $filelist; do
 		if [ -f "$file" ] && [ "${file##*.}s" = "phps" ]; then
-
-			local errortips;
-
-			`php -l $file >/dev/null 2>/tmp/php_error.log`
+			eval $PHPBIN $file >/dev/null 2>$PHPERRORFILE
 
 			[ "$?" -gt 0 ] \
 			&& pass=1 \
-			&& errortips=$(cat /tmp/php_error.log) \
-			&& echo -e "\033[32m${file}\033[0m\033[31m ✘\033[0m" \
-			&& echo -e "\033[41;37m${errortips}\033[0m" \
-			|| echo -e "\033[32m${file}\033[0m\033[32m ✔\033[0m"
+			&& errortips=$(cat $PHPERRORFILE) \
+			&& echo -e "\t\033[32m${file}\033[0m\033[31m ✘\033[0m" \
+			&& echo -e "\t\033[41;37m${errortips}\033[0m" \
+			|| echo -e "\t\033[32m${file}\033[0m\033[32m ✔\033[0m"
+
+			phpcsLog=`eval $PHPCS $file`
+
+			if [[ ${phpcsLog:0:1} != "." ]]; then
+				echo "$phpcsLog" >> $PHPCSLOGFILE
+			fi
+
 		fi
 	done
+	# test 
+	if [ $pass -eq 1 ]; then
+		#
+		echo "" > $PHPCSLOGFILE
+		echo -e "\n\033[37m|              当前提交PHP文件有语法错误、提交失败                     |\033[0m"
+		echo -e "\033[37m|----------------------------------------------------------------------|\033[0m"
+		exit 1
+	fi
+	echo -e "\n\033[37m|                         PHP语法检测通过                              |\033[0m"
+	# test psr
+	echo -e "\033[37m|----------------------------------------------------------------------|\033[0m"
+	echo -e "\033[37m|                         PHPCS检测开始                                |\033[0m"
 
-	[ $pass -eq 1 ] && echo -e "\033[33m==>\033[1m \033[37m Please Fix ! \033[0m" && exit 1
+	if [ -s $PHPCSLOGFILE ]; then
+		cat $PHPCSLOGFILE && rm $PHPCSLOGFILE
+		echo -e "\n\033[37m|                  请修复代码格式!git提交失败                            \033[0m"
+		echo -e "\033[37m|----------------------------------------------------------------------\033[0m"
+		exit 1
+	fi
+	echo -e "\n\033[37m|                   未检测到格式错误的PHP文件                          \033[0m"
+	echo -e "\033[37m|----------------------------------------------------------------------|\033[0m"
 
 	git add $filelist
 
-	echo -e "\033[33m==>\033[1m \033[37m Success...🤙🤙🤙  \033[0m"
+	echo -e "\033[33m[SUCCESS]\033[1m \033[37m \t\tgit提交成功...🤙🤙🤙  \033[0m"
 
   return $?
 }
@@ -98,28 +213,47 @@ add_task()
 #使用说明
 usage()
 {
-	cat <<EOF
-usage:   gtask [options]
-options:
--s          "git status"
--c [h|f]
-	    h "创建一个 hotfix 分支 base master"
-	    f "创建一个 feature 分支 base develop"
--d    "删除本地非[master\develop\dev]分支  注意：当使用此选项时、其他选项不生效"
--a|--add    "--add=<file>. 添加到暂存区,并且检测php语法错误！默认为全部改动，但可以添加一个指定文件、注意： 当使用此选项时、其他选项不生效"
--m|--msg    "--msg=<msg>提交代码到仓库 必跟参数 message"
+	echo -e "
+\033[1;37mUSAGE \033[0m  [<options...>]
 
-EOF
+\033[1;37mOPTIONS\033[0m:
+-s
+    执行 git status
 
+-c [<mode>]
+    h 创建一个 hotfix 分支 基于 master 所以本地要有 master 分支
+    f 创建一个 feature 分支 基于 develop 所以本地要有 develop 分支
+
+-d
+    删除本地非[master\develop\dev]分支  注意：当使用此选项时、其他选项不生效
+
+-a|--add
+    --add=<file>. 添加到暂存区,并且检测php语法错误！默认为全部改动，但可以添加一个指定文件、注意： 当使用此选项时、其他选项不生效
+    gtask -a .
+    gtask -a file
+
+-m|--msg [<message>]
+    默认 message=fixbug 提交代码到仓库 必跟参数 message
+    gtask -mbug提交
+
+--co [<index>]
+    会出现本地可以切换的分支、index 可以某一个分支的索引位置，直接切到该选中分支 
+    gtask --co 会列表所有可切换分支
+    gtask --co 1 会切换到 1对应的分支
+--merge [<index>]
+	同 --co 一样的用法，把指定分支合并到当前所在分支
+"
 	exit 0
 }
 
 #判断参数
 [ "$#" -eq 0 ] && usage
 
-args=`getopt -o m::a::c:sdh --long add::,msg::,status -n "$0" -- "$@"`
+args=`eval $GUNOPT -o m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
 
-eval set -- "$args"
+
+eval set -- "${args}"
+
 
 while true; do
 	case $1 in
@@ -128,7 +262,7 @@ while true; do
 			exit 0
 			;;
 	  	-m | --msg)
-		    [ -z $2 ] && msg=fixbug || msg=$2
+		    [ ! -n $2 ] && msg=fixbug || msg=$2
 		    eval git commit -m $2
 		    exit
 	    	;;
@@ -164,9 +298,19 @@ while true; do
 				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 			fi
 			exit 1;;
+		--co)
+			shift
+			ls_git_local_branch $2
+			exit 0
+			;;
+		--merge)
+			shift
+			run_merge_branc $2
+			exit 0
+			;;
 	  --)
 	    shift
-	    exit
+	    break;
 	    ;;
 	\?)
 	    usage
