@@ -1,5 +1,6 @@
 # gtask
-> Simplify task branch creation！
+
+Simplify task branch creation！
 
 ## depends
 - git
