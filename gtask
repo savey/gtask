@@ -28,7 +28,11 @@ SELECTBRANCH=
 # 带参数时，指定把某个索引分支 merge 到 指定索引分支
 run_merge_branc()
 {
-	
+	if [ $1 = "abort" ]; then
+	    git merge --abort
+	    return $?
+	fi
+
 	select_branch $1
 
 	eval git merge $SELECTBRANCH
@@ -209,6 +213,25 @@ add_task()
   return $?
 }
 
+
+push_pull()
+{
+	case $1 in
+		l)
+	  		git pull
+	   		;;
+		s)
+			git push
+			;;
+		sf)
+			git push -f
+			;;
+		*)
+			echo -e "The Options -p Only Support l or s!"
+			;;
+	esac
+}
+
 #使用说明
 usage()
 {
@@ -239,8 +262,14 @@ usage()
     会出现本地可以切换的分支、index 可以某一个分支的索引位置，直接切到该选中分支 
     gtask --co 会列表所有可切换分支
     gtask --co 1 会切换到 1对应的分支
+
 --merge [<index>]
-	同 --co 一样的用法，把指定分支合并到当前所在分支
+	同 --co 一样的用法，把指定分支合并到当前所在分支 支持 abort
+
+-p [l|s|sf]
+    l git pull
+    s git push
+    sf git push --force
 "
 	exit 0
 }
@@ -248,7 +277,7 @@ usage()
 #判断参数
 [ "$#" -eq 0 ] && usage
 
-args=`eval $GUNOPT -o m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
+args=`eval $GUNOPT -o p::m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
 
 
 eval set -- "${args}"
@@ -256,6 +285,10 @@ eval set -- "${args}"
 
 while true; do
 	case $1 in
+		-p)
+			push_pull $2
+			exit 0
+			;;
 		-s | --status)
 			git status
 			exit 0
@@ -277,12 +310,13 @@ while true; do
 				h )
 					create_task hotfix
 					;;
-				fh | hf )
+				[hf] )
 					create_task feature
 					create_task hotfix
 					;;
 				* )
 					usage
+					exit $?
 
 			esac
 			exit 0
@@ -296,7 +330,8 @@ while true; do
 			if [ $tag = "y" ]; then
 				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 			fi
-			exit 1;;
+			exit 0
+			;;
 		--co)
 			shift
 			ls_git_local_branch $2
@@ -313,7 +348,7 @@ while true; do
 	    ;;
 	\?)
 	    usage
-		  exit
-			;;
+		exit
+		;;
 	esac
 done
