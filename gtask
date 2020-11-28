@@ -310,7 +310,7 @@ while true; do
 				h )
 					create_task hotfix
 					;;
-				[hf] )
+				hf|fh )
 					create_task feature
 					create_task hotfix
 					;;
