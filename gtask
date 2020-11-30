@@ -277,7 +277,7 @@ usage()
 #判断参数
 [ "$#" -eq 0 ] && usage
 
-args=`eval $GUNOPT -o p::m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
+args=`eval $GUNOPT -o p:m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
 
 
 eval set -- "${args}"
@@ -286,7 +286,8 @@ eval set -- "${args}"
 while true; do
 	case $1 in
 		-p)
-			push_pull $2
+			shift
+			push_pull $1
 			exit 0
 			;;
 		-s | --status)
@@ -344,7 +345,6 @@ while true; do
 			;;
 	  --)
 	    shift
-	    break;
 	    ;;
 	\?)
 	    usage
