@@ -28,7 +28,7 @@ SELECTBRANCH=
 # 带参数时，指定把某个索引分支 merge 到 指定索引分支
 run_merge_branc()
 {
-	if [ $1 = "abort" ]; then
+	if [[ $1 = "abort" ]]; then
 	    git merge --abort
 	    return $?
 	fi
@@ -58,12 +58,12 @@ select_branch()
 
 	build_array_branch
 	
-	if [ ! $1 ]; then
+	if [[ -z $1 ]]; then
 		for (( i = 1; i < ${#LOCALBRANCHS[@]}; i++ )); do
 			echo -e "\033[32m[$i] ----- ${LOCALBRANCHS[i]}\033[0m";
 		done
 
-		while [ ! $SELECTBRANCH ]; do
+		while [[ -z $SELECTBRANCH ]]; do
 			read -ep "Select Your Branch Index: " index
 			SELECTBRANCH=${LOCALBRANCHS[index]}
 		done
@@ -74,7 +74,7 @@ select_branch()
 
 			SELECTBRANCH=${LOCALBRANCHS[$1]}
 
-			if [ ! $SELECTBRANCH ]; then
+			if [[ -z $SELECTBRANCH ]]; then
 				echo "Please Select Branch Index"
 				exit 1
 			fi
@@ -123,25 +123,24 @@ create_task()
 
 	local temp="${1}/${TASKDATA}-${TASKNAME}"
 
-	if [ "$1" = "hotfix" ]; then
-		git pull origin master:master>/dev/null 2>&1
-		git checkout master>/dev/null 2>&1
-	elif [ "$1" = "feature" ]; then
-		git pull origin develop:develop>/dev/null 2>&1
-		git checkout develop>/dev/null 2>&1
+	if [[ "$1" = "hotfix" ]]; then
+		git pull origin master:master
+		git checkout master
+	elif [[ "$1" = "feature" ]]; then
+		git pull origin develop:develop
+		git checkout develop
 	else
 		usage
 	fi
 
-	git checkout -b ${temp}>/dev/null 2>&1
+	git checkout -b ${temp}
 
-
-	if [ $? -eq 0 ]; then
+	if [[ $? -eq 0 ]]; then
 		echo -e "🍻 Success created task: \033[32m${temp}\033[0m"
 	else
 		echo -e "💊 failure!"
 	fi
-
+	
 	return $?
 }
 
@@ -150,11 +149,11 @@ create_task()
 add_task()
 {
 	local filelist
-	if [ -z "$1" ] || [ $1 = "." ]; then
+	if [[ -z "$1" ]] || [ $1 = "." ]]; then
 
 		filelist=`git status --porcelain --u | sed 's/^...//g'`
 
-		[ -z "$filelist" ] && printf "未发现修改的文件！\n" && exit 1
+		[[ -z "$filelist" ]] && printf "未发现修改的文件！\n" && exit 1
 	else
 		filelist=$1	
 	fi
@@ -166,10 +165,10 @@ add_task()
 	local errortips
 
 	for file in $filelist; do
-		if [ -f "$file" ] && [ "${file##*.}s" = "phps" ]; then
+		if [[ -f "$file" && "${file##*.}s" = "phps" ]]; then
 			eval $PHPBIN $file >/dev/null 2>$PHPERRORFILE
 
-			[ "$?" -gt 0 ] \
+			[[ "$?" -gt 0 ]] \
 			&& pass=1 \
 			&& errortips=$(cat $PHPERRORFILE) \
 			&& echo -e "\t\033[32m${file}\033[0m\033[31m ✘\033[0m" \
@@ -185,7 +184,7 @@ add_task()
 		fi
 	done
 	# test 
-	if [ $pass -eq 1 ]; then
+	if [[ $pass -eq 1 ]]; then
 		#
 		echo "" > $PHPCSLOGFILE
 		echo -e "\n\033[37m|              当前提交PHP文件有语法错误、提交失败                     |\033[0m"
@@ -197,7 +196,7 @@ add_task()
 	echo -e "\033[37m|----------------------------------------------------------------------|\033[0m"
 	echo -e "\033[37m|                         PHPCS检测开始                                |\033[0m"
 
-	if [ -s $PHPCSLOGFILE ]; then
+	if [[ -s $PHPCSLOGFILE ]]; then
 		cat $PHPCSLOGFILE && rm $PHPCSLOGFILE
 		echo -e "\n\033[37m|                  请修复代码格式!git提交失败                            \033[0m"
 		echo -e "\033[37m|----------------------------------------------------------------------\033[0m"
@@ -275,7 +274,7 @@ usage()
 }
 
 #判断参数
-[ "$#" -eq 0 ] && usage
+[[ "$#" -eq 0 ]] && usage
 
 args=`eval $GUNOPT -o p:m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
 
@@ -295,7 +294,7 @@ while true; do
 			exit 0
 			;;
 	  	-m | --msg)
-		    [ ! -n $2 ] && msg=fixbug || msg=$2
+		    [[ ! -n $2 ]] && msg=fixbug || msg=$2
 		    eval git commit -m $2
 		    exit
 	    	;;
@@ -328,7 +327,7 @@ while true; do
 			;;
 		-d)
 			read -p "Are You Sure?[y/n]" -s tag
-			if [ $tag = "y" ]; then
+			if [[ $tag = "y" ]]; then
 				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 			fi
 			exit 0
