@@ -60,7 +60,9 @@ select_branch()
 	
 	if [[ -z $1 ]]; then
 		for (( i = 1; i < ${#LOCALBRANCHS[@]}; i++ )); do
-			echo -e "\033[32m[$i] ----- ${LOCALBRANCHS[i]}\033[0m";
+			local selectBranchName=${LOCALBRANCHS[i]}
+			local branchDespc=`eval git config branch.$selectBranchName.description`
+			echo -e "\033[32m[$i] - ${selectBranchName}\033[0m #description:${branchDespc}"
 		done
 
 		while [[ -z $SELECTBRANCH ]]; do
@@ -340,14 +342,15 @@ while true; do
 		--merge)
 			shift
 			run_merge_branc $2
-			exit 0
+			exit $?
 			;;
 	  --)
-	    shift
+		usage
+		exit $?
 	    ;;
 	\?)
 	    usage
-		exit
+		exit $?
 		;;
 	esac
 done
