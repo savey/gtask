@@ -51,20 +51,37 @@ ls_git_local_branch()
 	eval git checkout $SELECTBRANCH
 }
 
+show_local_branch()
+{
+	build_array_branch
+
+	#当前分支
+	local currentBranch=`git branch | grep "^*" | cut -d " " -f 2`
+
+	for (( i = 1; i < ${#LOCALBRANCHS[@]}; i++ )); do
+		local selectBranchName=${LOCALBRANCHS[i]}
+		local branchDesc=`eval git config branch.$selectBranchName.description`
+		
+		[[ $selectBranchName = $currentBranch ]] \
+		&& branchSelc="\033[32;40;5m [$i] - ${selectBranchName}\033[0m" \
+		|| branchSelc="\033[32m [$i] - ${selectBranchName}\033[0m"
+		
+		[[ -n $branchDesc ]] && branchSelc="${branchSelc}   #desc:${branchDesc}"
+
+		echo -e $branchSelc
+	done
+	
+	return $?
+}
+
 
 # 选择分支
 select_branch()
-{
-
-	build_array_branch
-	
+{	
 	if [[ -z $1 ]]; then
-		for (( i = 1; i < ${#LOCALBRANCHS[@]}; i++ )); do
-			local selectBranchName=${LOCALBRANCHS[i]}
-			local branchDespc=`eval git config branch.$selectBranchName.description`
-			echo -e "\033[32m[$i] - ${selectBranchName}\033[0m #description:${branchDespc}"
-		done
 
+		show_local_branch
+		
 		while [[ -z $SELECTBRANCH ]]; do
 			read -ep "Select Your Branch Index: " index
 			SELECTBRANCH=${LOCALBRANCHS[index]}
@@ -278,7 +295,7 @@ usage()
 #判断参数
 [[ "$#" -eq 0 ]] && usage
 
-args=`eval $GUNOPT -o p:m:a:c:sdh -l merge,co,add:,msg:,status -- $*`
+args=`eval $GUNOPT -o p:m:a:c:bsdh -l merge,co,add:,msg:,status -- $*`
 
 
 eval set -- "${args}"
@@ -286,6 +303,10 @@ eval set -- "${args}"
 
 while true; do
 	case $1 in
+		-b)
+			show_local_branch
+			exit 0
+			;;
 		-p)
 			shift
 			push_pull $1
