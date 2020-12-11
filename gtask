@@ -5,6 +5,8 @@ TASKNAME=
 #任务日期
 TASKDATA=
 
+#git 执行文件
+GITPATH="/usr/bin/git"
 #php解释器
 PHPBIN="/usr/bin/env php -l"
 # phpcs 检查到的错误信息
@@ -29,13 +31,13 @@ SELECTBRANCH=
 run_merge_branc()
 {
 	if [[ $1 = "abort" ]]; then
-	    git merge --abort
+	    eval $GITPATH merge --abort
 	    return $?
 	fi
 
 	select_branch $1
 
-	eval git merge $SELECTBRANCH
+	eval exec $GITPATH merge $SELECTBRANCH
 }
 
 
@@ -48,7 +50,7 @@ ls_git_local_branch()
 
 	select_branch $1
 
-	eval git checkout $SELECTBRANCH
+	eval exec $GITPATH checkout $SELECTBRANCH
 }
 
 show_local_branch()
@@ -56,11 +58,11 @@ show_local_branch()
 	build_array_branch
 
 	#当前分支
-	local currentBranch=`git branch | grep "^*" | cut -d " " -f 2`
+	local currentBranch=`eval $GITPATH branch | grep "^*" | cut -d " " -f 2`
 
 	for (( i = 1; i < ${#LOCALBRANCHS[@]}; i++ )); do
 		local selectBranchName=${LOCALBRANCHS[i]}
-		local branchDesc=`eval git config branch.$selectBranchName.description`
+		local branchDesc=`eval $GITPATH config branch.$selectBranchName.description`
 		
 		[[ $selectBranchName = $currentBranch ]] \
 		&& branchSelc="\033[32;40;5m [$i] - ${selectBranchName}\033[0m" \
@@ -114,7 +116,7 @@ build_array_branch()
 {
 	local i=1
 
-	for b in `git branch | grep "" | sed -e 's/*/ /' -e 's/ //'`; do LOCALBRANCHS[$i]=$b; let i++; done;
+	for b in `eval $GITPATH branch | grep "" | sed -e 's/*/ /' -e 's/ //'`; do LOCALBRANCHS[$i]=$b; let i++; done;
 
 	return $?
 }
@@ -143,16 +145,16 @@ create_task()
 	local temp="${1}/${TASKDATA}-${TASKNAME}"
 
 	if [[ "$1" = "hotfix" ]]; then
-		git pull origin master:master
-		git checkout master
+		eval $GITPATH pull origin master:master
+		eval $GITPATH checkout master
 	elif [[ "$1" = "feature" ]]; then
-		git pull origin develop:develop
-		git checkout develop
+		eval $GITPATH pull origin develop:develop
+		eval $GITPATH checkout develop
 	else
 		usage
 	fi
 
-	git checkout -b ${temp}
+	eval $GITPATH checkout -b ${temp}
 
 	if [[ $? -eq 0 ]]; then
 		echo -e "🍻 Success created task: \033[32m${temp}\033[0m"
@@ -170,7 +172,7 @@ add_task()
 	local filelist
 	if [[ -z "$1" || $1 = "." ]]; then
 
-		filelist=`git status --porcelain --u | sed 's/^...//g'`
+		filelist=`eval $GITPATH status --porcelain --u | sed 's/^...//g'`
 
 		[[ -z "$filelist" ]] && printf "未发现修改的文件！\n" && exit 1
 	else
@@ -224,7 +226,7 @@ add_task()
 	echo -e "\n\033[37m|                   未检测到格式错误的PHP文件                          \033[0m"
 	echo -e "\033[37m|----------------------------------------------------------------------|\033[0m"
 
-	git add $filelist
+	eval $GITPATH add $filelist
 
 	echo -e "\033[33m[SUCCESS]\033[1m \033[37m \t\tgit提交成功...🤙🤙🤙  \033[0m"
 
@@ -236,19 +238,34 @@ push_pull()
 {
 	case $1 in
 		l)
-	  		git pull
+	  		eval $GITPATH pull
 	   		;;
 		s)
-			git push
+			eval $GITPATH push
 			;;
 		sf)
-			git push -f
+			eval $GITPATH push -f
 			;;
 		*)
 			echo -e "The Options -p Only Support l or s!"
 			;;
 	esac
 }
+
+#删除分支
+del_branch() {
+	if [[ $1 = "all" ]]; then
+		read -p "Are You Sure?[y/n]" -s tag
+		if [[ $tag = "y" ]]; then
+			exec eval $GITPATH checkout master && $GITPATH branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
+		fi
+	fi
+
+	select_branch
+
+	eval exec $GITPATH br -D $SELECTBRANCH
+}
+
 
 #使用说明
 usage()
@@ -266,8 +283,8 @@ usage()
     h 创建一个 hotfix 分支 基于 master 所以本地要有 master 分支
     f 创建一个 feature 分支 基于 develop 所以本地要有 develop 分支
 
--d
-    删除本地非[master\develop\dev]分支  注意：当使用此选项时、其他选项不生效
+-d [<index>]
+    index=all 时删除本地非[master\develop\dev]分支  注意：当使用此选项时、其他选项不生效
 
 -a|--add
     --add=<file>. 添加到暂存区,并且检测php语法错误！默认为全部改动，但可以添加一个指定文件、注意： 当使用此选项时、其他选项不生效
@@ -297,7 +314,7 @@ usage()
 #判断参数
 [[ "$#" -eq 0 ]] && usage
 
-args=`eval $GUNOPT -o p:m:a:c:bsdh -l merge,co,add:,msg:,status -- $*`
+args=`eval $GUNOPT -o p:m:a:c:dbsh -l merge,co,add:,msg:,status -- $*`
 
 
 eval set -- "${args}"
@@ -315,13 +332,13 @@ while true; do
 			exit 0
 			;;
 		-s | --status)
-			git status
+			eval $GITPATH status
 			exit 0
 			;;
 	  	-m | --msg)
 		    [[ ! -n $2 ]] && msg=fixbug || msg=$2
-		    eval git commit -m $2
-		    exit
+		    eval $GITPATH commit -m $2
+		    exit 0
 	    	;;
 	  	-h )
 		    usage
@@ -341,20 +358,18 @@ while true; do
 					;;
 				* )
 					usage
-					exit $?
+					exit 0
 
 			esac
 			exit 0
 			;;
 		-a | --add)
 			add_task $2
-			exit $?
+			exit 0
 			;;
 		-d)
-			read -p "Are You Sure?[y/n]" -s tag
-			if [[ $tag = "y" ]]; then
-				git checkout master && git branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
-			fi
+			shift
+			del_branch $2
 			exit 0
 			;;
 		--co)
@@ -365,7 +380,7 @@ while true; do
 		--merge)
 			shift
 			run_merge_branc $2
-			exit $?
+			exit 0
 			;;
 	  --)
 		usage
