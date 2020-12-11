@@ -257,6 +257,8 @@ usage()
 \033[1;37mUSAGE \033[0m  [<options...>]
 
 \033[1;37mOPTIONS\033[0m:
+-b 
+    查看本地所有分支
 -s
     执行 git status
 
