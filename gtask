@@ -256,9 +256,10 @@ push_pull()
 del_branch() {
 	if [[ $1 = "all" ]]; then
 		read -p "Are You Sure?[y/n]" -s tag
-		if [[ $tag = "y" ]]; then
-			exec eval $GITPATH checkout master && $GITPATH branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
+		if [[ $tag"es" = "yes" ]]; then
+			eval $GITPATH checkout master && $GITPATH branch | egrep -v "master|dev|test" | awk '{cmd="git branch -D "$1; system(cmd)}'
 		fi
+		exit 0
 	fi
 
 	select_branch
