@@ -4,9 +4,7 @@ Work happily with git!
 
 ## depends
 - git
-- gun-getopt
-- phpcs
-- php
+- gnu-getopt
 
 
 ## Basic usage
