@@ -6,7 +6,7 @@ TASKNAME=
 TASKDATA=
 
 #git 执行文件
-GITPATH="/usr/bin/git"
+GITPATH="/usr/bin/env git"
 #php解释器
 PHPBIN="/usr/bin/env php -l"
 # phpcs 检查到的错误信息
@@ -145,10 +145,10 @@ create_task()
 	local temp="${1}/${TASKDATA}-${TASKNAME}"
 
 	if [[ "$1" = "hotfix" ]]; then
-		eval $GITPATH pull origin master:master
+		eval $GITPATH fetch origin master:master
 		eval $GITPATH checkout master
 	elif [[ "$1" = "feature" ]]; then
-		eval $GITPATH pull origin develop:develop
+		eval $GITPATH fetch origin develop:develop
 		eval $GITPATH checkout develop
 	else
 		usage
@@ -275,6 +275,8 @@ usage()
 \033[1;37mUSAGE \033[0m  [<options...>]
 
 \033[1;37mOPTIONS\033[0m:
+-e 
+	为当前分支打上说明
 -b 
     查看本地所有分支
 -s
@@ -312,10 +314,18 @@ usage()
 	exit 0
 }
 
+#getopt 版本检测 gun getopt
+getoptV=`getopt -V 2>&1`
+if [[ ! $getoptV =~ "linux" ]]; then
+	echo "You can run brew install gun-getopt"
+	exit 0
+fi
+
+
 #判断参数
 [[ "$#" -eq 0 ]] && usage
 
-args=`eval $GUNOPT -o p:m:a:c:dbsh -l merge,co,add:,msg:,status -- $*`
+args=`eval $GUNOPT -o p:m:a:c:dbshe -l merge,co,add:,msg:,status -- $*`
 
 
 eval set -- "${args}"
@@ -323,6 +333,9 @@ eval set -- "${args}"
 
 while true; do
 	case $1 in
+		-e)
+			eval exec $GITPATH branch --edit-description
+			;;
 		-b)
 			show_local_branch
 			exit 0
