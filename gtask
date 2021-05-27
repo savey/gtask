@@ -16,7 +16,7 @@ PHPERRORFILE=/tmp/php_error.log
 #phpcs 执行
 PHPCS="phpcs --standard=OSR0 --colors --encoding=utf-8 -n -p"
 #gun-opt
-GUNOPT="/usr/bin/env getopt"
+GUNOPT="/usr/local/opt/gnu-getopt/bin/getopt"
 
 FORMATSTUDIO="\033[37m|----------------------------------------------------------------------|\033[0m"
 
@@ -314,95 +314,95 @@ usage()
 	exit 0
 }
 
-#getopt 版本检测 gun getopt
-getoptV=`getopt -V 2>&1`
-if [[ ! $getoptV =~ "linux" ]]; then
-	echo "You can run brew install gun-getopt"
-	exit 0
-fi
+
+gtask_run() {
+	#getopt 版本检测 gnu getopt
+	if [[ ! -f $GUNOPT ]]; then
+		echo "You can run brew install gnu-getopt"
+		exit 0
+	fi
+	#判断参数
+	[[ "$#" -eq 0 ]] && usage
 
 
-#判断参数
-[[ "$#" -eq 0 ]] && usage
+	args=`eval $GUNOPT -o p:m:a:c:dbshe -l merge,co,add:,msg:,status -- $*`
+	eval set -- "${args}"
+	while true; do
+		case $1 in
+			-e)
+				eval exec $GITPATH branch --edit-description
+				;;
+			-b)
+				show_local_branch
+				exit 0
+				;;
+			-p)
+				shift
+				push_pull $1
+				exit 0
+				;;
+			-s | --status)
+				eval $GITPATH status
+				exit 0
+				;;
+		  	-m | --msg)
+			    [[ ! -n $2 ]] && msg=fixbug || msg=$2
+			    eval $GITPATH commit -m $2
+			    exit 0
+		    	;;
+		  	-h )
+			    usage
+			    shift
+			    ;;
+			-c )
+				case $2 in
+					f )
+						create_task feature
+						;;
+					h )
+						create_task hotfix
+						;;
+					hf|fh )
+						create_task feature
+						create_task hotfix
+						;;
+					* )
+						usage
+						exit 0
 
-args=`eval $GUNOPT -o p:m:a:c:dbshe -l merge,co,add:,msg:,status -- $*`
-
-
-eval set -- "${args}"
-
-
-while true; do
-	case $1 in
-		-e)
-			eval exec $GITPATH branch --edit-description
-			;;
-		-b)
-			show_local_branch
-			exit 0
-			;;
-		-p)
-			shift
-			push_pull $1
-			exit 0
-			;;
-		-s | --status)
-			eval $GITPATH status
-			exit 0
-			;;
-	  	-m | --msg)
-		    [[ ! -n $2 ]] && msg=fixbug || msg=$2
-		    eval $GITPATH commit -m $2
-		    exit 0
-	    	;;
-	  	-h )
-		    usage
-		    shift
+				esac
+				exit 0
+				;;
+			-a | --add)
+				add_task $2
+				exit 0
+				;;
+			-d)
+				shift
+				del_branch $2
+				exit 0
+				;;
+			--co)
+				shift
+				ls_git_local_branch $2
+				exit 0
+				;;
+			--merge)
+				shift
+				run_merge_branc $2
+				exit 0
+				;;
+		  --)
+			usage
+			exit $?
 		    ;;
-		-c )
-			case $2 in
-				f )
-					create_task feature
-					;;
-				h )
-					create_task hotfix
-					;;
-				hf|fh )
-					create_task feature
-					create_task hotfix
-					;;
-				* )
-					usage
-					exit 0
+		\?)
+		    usage
+			exit $?
+			;;
+		esac
+	done
+}
 
-			esac
-			exit 0
-			;;
-		-a | --add)
-			add_task $2
-			exit 0
-			;;
-		-d)
-			shift
-			del_branch $2
-			exit 0
-			;;
-		--co)
-			shift
-			ls_git_local_branch $2
-			exit 0
-			;;
-		--merge)
-			shift
-			run_merge_branc $2
-			exit 0
-			;;
-	  --)
-		usage
-		exit $?
-	    ;;
-	\?)
-	    usage
-		exit $?
-		;;
-	esac
-done
+# run
+gtask_run $*
