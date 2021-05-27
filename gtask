@@ -325,7 +325,7 @@ gtask_run() {
 	[[ "$#" -eq 0 ]] && usage
 
 
-	args=`eval $GUNOPT -o p:m:a:c:dbshe -l merge,co,add:,msg:,status -- $*`
+	args=`eval $GUNOPT -o p:m:a:c:dbshe -l merge,co,add:,msg:,status -n 'example.bash' -- $*`
 	eval set -- "${args}"
 	while true; do
 		case $1 in
